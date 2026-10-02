@@ -1,0 +1,81 @@
+{
+  "default_destination": "skills.md",
+  "split_destination": "skills.md + scripts/utils/config",
+  "utility_config_routes": {
+    "scripts/utils/config/banned_terms.json": [
+      "banned",
+      "meta wording",
+      "internal wording",
+      "professor-facing",
+      "unsupported claim",
+      "causal language",
+      "statistically significant"
+    ],
+    "scripts/utils/config/wordcount_targets.json": [
+      "word count",
+      "wordcount",
+      "85%",
+      "section target",
+      "pre-humaniser",
+      "pre humaniser"
+    ],
+    "scripts/utils/config/survey_rules.json": [
+      "survey",
+      "questionnaire",
+      "cronbach",
+      "reliability",
+      "likert",
+      "15-25",
+      "15 to 25"
+    ],
+    "scripts/utils/config/artifact_requirements.json": [
+      "artifact",
+      "read all",
+      "final output",
+      "before generate",
+      "before generation",
+      "folder",
+      "project structure"
+    ],
+    "scripts/utils/config/technical_dataset_rules.json": [
+      "technical",
+      "coding",
+      "dataset",
+      "official dataset",
+      "public dataset",
+      "benchmark dataset",
+      "experiment",
+      "model training",
+      "evaluation"
+    ],
+    "scripts/utils/config/runtime_rules.json": [
+      "sandbox",
+      "command failed",
+      "terminal",
+      "nontechnical",
+      "non-technical",
+      "preflight",
+      "fallback",
+      "rtk",
+      "soffice",
+      "libreoffice",
+      "one command",
+      "easy"
+    ]
+  },
+  "skills_md_keywords": [
+    "academic writing",
+    "writing style",
+    "source synthesis",
+    "critical analysis",
+    "distinction",
+    "high distinction",
+    "professor review",
+    "originality",
+    "template preservation",
+    "model routing",
+    "topic isolation",
+    "judgement",
+    "interpretation"
+  ]
+}

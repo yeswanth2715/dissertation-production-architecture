@@ -1,0 +1,12 @@
+{
+  "default_pre_humaniser_min_pct": 0.85,
+  "default_pre_humaniser_max_pct": 0.92,
+  "section_targets": {
+    "Introduction": 1000,
+    "CHAPTER ONE - LITERATURE REVIEW I": 3000,
+    "CHAPTER TWO - LITERATURE REVIEW II": 3000,
+    "CHAPTER THREE - METHODOLOGY": 2000,
+    "CHAPTER FOUR - FINDINGS, ANALYSIS AND DISCUSSION": 5000,
+    "Conclusion": 1000
+  }
+}

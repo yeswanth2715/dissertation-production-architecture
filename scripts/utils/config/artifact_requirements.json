@@ -1,0 +1,36 @@
+{
+  "final_output_gate": {
+    "required_existing_areas_to_scan": [
+      "inputs",
+      "knowledge-base",
+      "feedback",
+      "qa",
+      "outputs"
+    ],
+    "readable_text_extensions": [
+      ".md",
+      ".txt",
+      ".csv",
+      ".tsv",
+      ".json",
+      ".yaml",
+      ".yml"
+    ],
+    "inspectable_document_extensions": [
+      ".docx"
+    ],
+    "inspectable_data_extensions": [
+      ".xlsx",
+      ".xls"
+    ],
+    "binary_inventory_extensions": [
+      ".doc",
+      ".pdf",
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".svg",
+      ".webp"
+    ]
+  }
+}

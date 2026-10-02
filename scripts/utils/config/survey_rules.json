@@ -1,0 +1,8 @@
+{
+  "new_questionnaire_target_min_questions": 15,
+  "new_questionnaire_target_max_questions": 25,
+  "construct_likert_items_min": 3,
+  "construct_likert_items_max": 5,
+  "target_cronbach_alpha": 0.70,
+  "weak_reliability_response": "Report honestly, shift to item-level/descriptive interpretation, and state the limitation."
+}

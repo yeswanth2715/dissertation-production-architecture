@@ -1,0 +1,33 @@
+{
+  "technical_project_dataset_policy": {
+    "default_behavior": "Do not wait silently for the user to provide a dataset. Identify whether an official/public dataset is required, then either propose suitable official sources or ask for approval before using one.",
+    "preferred_dataset_sources": [
+      "official benchmark dataset",
+      "university or research-lab dataset",
+      "government/open-data portal",
+      "peer-reviewed paper dataset",
+      "well-documented public repository with licence",
+      "competition dataset with clear terms"
+    ],
+    "avoid_dataset_sources": [
+      "uncited random web images",
+      "private data without permission",
+      "unclear licence datasets",
+      "AI-generated data presented as empirical evidence",
+      "datasets unrelated to the dissertation scope"
+    ],
+    "required_dataset_record": [
+      "dataset name",
+      "official/source URL",
+      "licence or access terms",
+      "task relevance",
+      "sample size used",
+      "selection criteria",
+      "exclusion criteria",
+      "preprocessing",
+      "train validation test split where applicable",
+      "limitations"
+    ],
+    "approval_rule": "If dataset choice materially affects the methodology, cost, download size, runtime, ethics, or research scope, ask the user before downloading or committing to it."
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "default_entrypoint": "scripts/start_here.py",
+  "safe_workspace_rule": "All generated files should stay inside the repository/project folder unless the user explicitly approves another location.",
+  "command_policy": {
+    "preferred_path": "direct_python",
+    "rtk_policy": "Use RTK only when it is detected and stable. If RTK/helper setup fails, fallback to direct Python without asking the user to debug RTK.",
+    "shell_policy": "Do not rely on chained shell syntax. Run commands as separate script steps.",
+    "render_policy": "Render QA is optional unless final layout acceptance is required. If LibreOffice/soffice is unavailable, run structural DOCX QA and report render unavailable."
+  },
+  "nontechnical_modes": {
+    "discover": "Read project folder and report what exists.",
+    "pre-survey": "Prepare or validate the project before survey generation.",
+    "survey-analysis": "Analyse returned survey results and update QA evidence.",
+    "final": "Run artifact gate, builders when configured, and final QA."
+  },
+  "required_core_checks": [
+    "python_available",
+    "repo_write_access",
+    "project_exists",
+    "scripts_compile"
+  ],
+  "optional_tool_checks": [
+    "rtk_available",
+    "soffice_available",
+    "python_docx_available",
+    "openpyxl_available"
+  ]
+}

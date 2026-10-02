@@ -1,0 +1,43 @@
+project:
+  slug: ""
+  title: ""
+  owner: ""
+
+method:
+  type: unknown
+  survey_required: false
+
+stage:
+  current: discovery
+  requested_output: ""
+
+template:
+  name: uca
+  source: ""
+
+word_count:
+  target: 15000
+  pre_humaniser_min_pct: 0.85
+  pre_humaniser_max_pct: 0.92
+
+survey:
+  questionnaire: outputs/survey-questionnaire.docx
+  results: ""
+
+generation:
+  builder: ""
+  post_build: ""
+  cleanup: ""
+
+qa:
+  default_mode: fast
+  render_required_for_final: true
+  visual_style_policy: architecture/visual-style-policy.md
+
+writing_style:
+  profile: ""
+  avoid_prior_project_style: true
+
+privacy:
+  keep_project_folder_gitignored: true
+  keep_raw_guidelines_private: true

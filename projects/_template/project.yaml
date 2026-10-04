@@ -23,11 +23,13 @@ word_count:
 survey:
   questionnaire: outputs/survey-questionnaire.docx
   results: ""
+  metadata_cols: 6
 
 generation:
   builder: ""
   post_build: ""
   cleanup: ""
+  timeout_seconds: 300
 
 qa:
   default_mode: fast
@@ -41,3 +43,6 @@ writing_style:
 privacy:
   keep_project_folder_gitignored: true
   keep_raw_guidelines_private: true
+
+outputs:
+  dissertation: outputs/dissertation.docx

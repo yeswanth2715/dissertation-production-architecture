@@ -10,16 +10,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from common import dump_json, latest_file, load_manifest, project_path, rel, write_text
+from common import artifact_path, dump_json, latest_file, load_manifest, project_path, rel, write_text
 
-
-STANDARD_17_CONSTRUCTS = [
-    {"code": "LR", "name": "Legacy readiness", "items": [1, 2, 3]},
-    {"code": "EM", "name": "Engineering-management capability", "items": [4, 5, 6]},
-    {"code": "RG", "name": "Responsible AI governance", "items": [7, 8, 9, 10]},
-    {"code": "CV", "name": "Cost and value management", "items": [11, 12, 13]},
-    {"code": "IF", "name": "Integration feasibility", "items": [14, 15, 16, 17]},
-]
 
 
 def likert_value(value: Any) -> float:
@@ -59,44 +51,18 @@ def survey_questions(path: Path | None) -> list[str]:
 
 
 def resolve_results(project_dir: Path, explicit: str | None, manifest: dict[str, Any]) -> Path:
-    if explicit:
-        path = Path(explicit)
-        if not path.is_absolute():
-            path = project_dir / path
-        return path
-    configured = manifest.get("survey", {}).get("results") if isinstance(manifest.get("survey"), dict) else None
-    if configured:
-        path = Path(str(configured))
-        if not path.is_absolute():
-            path = project_dir / path
-        return path
-    found = latest_file(project_dir, ["*.xlsx", "*.csv", "*.tsv"])
-    if found is None:
-        raise FileNotFoundError("No survey result file found. Provide --results or set survey.results in project.yaml.")
-    return found
+    value = explicit or manifest.get("survey", {}).get("results")
+    if not value:
+        raise ValueError("Set survey.results in project.yaml or provide --results; automatic dataset selection is disabled.")
+    path = artifact_path(project_dir, str(value))
+    if not path.is_file():
+        raise FileNotFoundError(f"Survey results missing: {path}")
+    return path
 
 
 def resolve_questionnaire(project_dir: Path, explicit: str | None, manifest: dict[str, Any]) -> Path | None:
-    if explicit:
-        path = Path(explicit)
-        return path if path.is_absolute() else project_dir / path
-    configured = manifest.get("survey", {}).get("questionnaire") if isinstance(manifest.get("survey"), dict) else None
-    if configured:
-        path = Path(str(configured))
-        return path if path.is_absolute() else project_dir / path
-    outputs = project_dir / "outputs"
-    search_roots = [outputs, project_dir] if outputs.exists() else [project_dir]
-    pattern_groups = [
-        ["*Questionnaire*.docx", "*questionnaire*.docx"],
-        ["*Survey_Questionnaire*.docx", "*survey_questionnaire*.docx"],
-        ["*Survey*.docx", "*survey*.docx"],
-    ]
-    for base in search_roots:
-        for patterns in pattern_groups:
-            found = latest_file(base, patterns)
-            if found and "dissertation" not in found.name.lower():
-                return found
-    return None
+    value = explicit or manifest.get("survey", {}).get("questionnaire")
+    return artifact_path(project_dir, str(value)) if value else None
 
 
 def read_results(path: Path) -> pd.DataFrame:
@@ -126,20 +92,22 @@ def detect_likert_columns(df: pd.DataFrame, metadata_cols: int) -> tuple[list[st
 
 def load_constructs(project_dir: Path, likert_count: int) -> list[dict[str, Any]]:
     codebook = project_dir / "knowledge-base" / "survey-codebook.json"
-    if codebook.exists():
-        data = json.loads(codebook.read_text(encoding="utf-8"))
-        constructs = data.get("constructs", [])
-        if constructs:
-            return constructs
-    if likert_count == 17:
-        return STANDARD_17_CONSTRUCTS
-    if likert_count and likert_count % 5 == 0:
-        group = likert_count // 5
-        return [
-            {"code": f"C{i}", "name": f"Construct {i}", "items": list(range((i - 1) * group + 1, i * group + 1))}
-            for i in range(1, 6)
-        ]
-    return []
+    if not codebook.exists():
+        return []  # Item descriptions only; never invent constructs.
+    data = json.loads(codebook.read_text(encoding="utf-8"))
+    constructs = data.get("constructs", [])
+    codes = set()
+    for construct in constructs:
+        code = construct.get("code")
+        items = construct.get("items", [])
+        if not code or code in codes or not items or len(items) != len(set(items)):
+            raise ValueError("Codebook requires unique construct codes and nonempty unique item lists.")
+        codes.add(code)
+        if any(type(i) is not int or not 1 <= i <= likert_count for i in items):
+            raise ValueError(f"Invalid codebook item index for {code}")
+        if any(i not in items for i in construct.get("reverse_items", [])):
+            raise ValueError(f"Reverse items must belong to construct {code}")
+    return constructs
 
 
 def analyse(project: str | Path, results: str | None = None, questionnaire: str | None = None, metadata_cols: int = 6) -> dict[str, Any]:
@@ -148,10 +116,17 @@ def analyse(project: str | Path, results: str | None = None, questionnaire: str 
     results_path = resolve_results(root, results, manifest)
     questionnaire_path = resolve_questionnaire(root, questionnaire, manifest)
     df = read_results(results_path)
+    metadata_cols = int(manifest.get("survey", {}).get("metadata_cols", metadata_cols))
+    if df.empty or not 0 <= metadata_cols < len(df.columns):
+        raise ValueError("Survey needs response rows and a valid metadata_cols setting.")
     survey_cols = list(df.columns[metadata_cols:])
     questions = survey_questions(questionnaire_path)
     likert_cols, likert = detect_likert_columns(df, metadata_cols)
 
+    # Invalid mixed columns must not silently shift positional construct mappings.
+    rejected = [str(c) for c in survey_cols if str(c) not in likert_cols]
+    if (root / "knowledge-base" / "survey-codebook.json").exists() and rejected:
+        raise ValueError("Codebook analysis requires valid Likert columns; rejected: " + ", ".join(rejected))
     constructs = load_constructs(root, len(likert_cols))
     construct_rows = []
     scores: dict[str, pd.Series] = {}
@@ -160,14 +135,18 @@ def analyse(project: str | Path, results: str | None = None, questionnaire: str 
         cols = [likert_cols[i] for i in indexes if 0 <= i < len(likert_cols)]
         if not cols:
             continue
-        frame = likert[cols]
-        score = frame.mean(axis=1)
+        frame = likert[cols].copy()
+        for item in construct.get("reverse_items", []):
+            column = likert_cols[item - 1]
+            frame[column] = 6 - frame[column]
+        score = frame.mean(axis=1).where(frame.notna().all(axis=1))
         scores[str(construct["code"])] = score
         construct_rows.append(
             {
                 "code": construct["code"],
                 "name": construct.get("name", construct["code"]),
                 "items": len(cols),
+                "valid_n": int(score.notna().sum()),
                 "alpha": cronbach_alpha(frame),
                 "mean": float(score.mean()),
                 "sd": float(score.std(ddof=1)),
@@ -222,7 +201,9 @@ def analyse(project: str | Path, results: str | None = None, questionnaire: str 
                 "mean": float(series.mean()),
                 "sd": float(series.std(ddof=1)),
                 "agree_count": int(counts.loc[4] + counts.loc[5]),
-                "agree_pct": float((counts.loc[4] + counts.loc[5]) / len(df) * 100),
+                "valid_n": int(series.notna().sum()),
+                "missing_n": int(series.isna().sum()),
+                "agree_pct": float((counts.loc[4] + counts.loc[5]) / series.notna().sum() * 100),
             }
         )
 
@@ -239,7 +220,10 @@ def analyse(project: str | Path, results: str | None = None, questionnaire: str 
         "duplicate_respondent_ids": duplicate_id_count,
         "exact_duplicate_rows": int(df.duplicated().sum()),
         "likert_columns": len(likert_cols),
-        "invalid_likert_cells": int(likert.isna().sum().sum()),
+        "invalid_likert_cells": sum(int((df[c].notna() & df[c].map(likert_value).isna()).sum()) for c in survey_cols),
+        "rejected_columns": rejected,
+        "construct_analysis_status": "codebook" if constructs else "not run: no construct codebook",
+        "missing_data_policy": "item valid denominators; complete cases per construct",
         "item_summary": item_rows,
         "construct_summary": construct_rows,
         "correlations": correlations,
@@ -267,6 +251,8 @@ def markdown(result: dict[str, Any]) -> str:
         f"- Exact duplicate rows: {result['exact_duplicate_rows']}",
         f"- Likert columns detected: {result['likert_columns']}",
         f"- Invalid Likert cells: {result['invalid_likert_cells']}",
+        f"- Construct analysis: {result['construct_analysis_status']}",
+        f"- Rejected columns: {result['rejected_columns']}",
         "",
     ]
     if result["construct_summary"]:
@@ -300,12 +286,12 @@ def markdown(result: dict[str, Any]) -> str:
         [
             "## Item Means",
             "",
-            "| Item | Mean | SD | Agree % | Column |",
-            "| --- | ---: | ---: | ---: | --- |",
+            "| Item | Mean | SD | Agree % | Valid n | Column |",
+            "| --- | ---: | ---: | ---: | ---: | --- |",
         ]
     )
     for row in result["item_summary"]:
-        lines.append(f"| {row['item']} | {row['mean']:.2f} | {row['sd']:.2f} | {row['agree_pct']:.1f}% | {row['column']} |")
+        lines.append(f"| {row['item']} | {row['mean']:.2f} | {row['sd']:.2f} | {row['agree_pct']:.1f}% | {row['valid_n']} | {row['column']} |")
     lines.append("")
     return "\n".join(lines)
 

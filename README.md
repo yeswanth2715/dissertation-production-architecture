@@ -373,3 +373,9 @@ The standard workflow performs this automatically and writes `qa/artifact-gate-r
 5. Generate approved outputs only.
 6. Run Fast QA during drafts.
 7. Run final QA before submission.
+
+## Enforced Evidence Harness
+
+See [Evidence and Execution Harness](architecture/evidence-harness-policy.md) for final-run prerequisites, evidence ledger format, explicit artifact paths, and survey codebooks. Final generation now requires a valid evidence ledger; output acceptance additionally requires a review bound to the generated file's SHA-256. Required render QA cannot be bypassed with fast QA.
+
+Install the script dependencies with `python -m pip install -r scripts/requirements.txt`. Run regression checks with `python -m unittest discover -s scripts/tests -v`.

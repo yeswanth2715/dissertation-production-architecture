@@ -7,7 +7,7 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-from common import dump_json, latest_file, load_manifest, project_path, read_text, rel, word_count, write_text
+from common import artifact_path, dissertation_path, dump_json, latest_file, load_manifest, project_path, read_text, rel, word_count, write_text
 from utils.rules import load_banned_terms
 
 
@@ -109,12 +109,8 @@ def zip_ok(path: Path) -> bool:
         return False
 
 
-def find_docx(project_dir: Path, explicit: str | None) -> Path | None:
-    if explicit:
-        path = Path(explicit)
-        return path if path.is_absolute() else project_dir / path
-    outputs = project_dir / "outputs"
-    return latest_file(outputs if outputs.exists() else project_dir, ["*.docx"])
+def find_docx(project_dir: Path, explicit: str | None) -> Path:
+    return dissertation_path(project_dir, explicit)
 
 
 def survey_result_files(project_dir: Path) -> list[Path]:
@@ -157,8 +153,8 @@ def qa(project: str | Path, docx: str | None = None, stage: str = "draft") -> di
 
     docx_path = find_docx(root, docx)
     doc_summary: dict[str, Any] = {"path": None}
-    if not docx_path:
-        checks.append(result("warn", "output docx", "No output DOCX found."))
+    if not docx_path.is_file():
+        checks.append(result("fail" if stage == "final" else "warn", "output docx", "No output DOCX found."))
     else:
         checks.append(result("pass" if zip_ok(docx_path) else "fail", "docx package", rel(docx_path)))
         doc = load_docx(docx_path)
@@ -212,7 +208,7 @@ def qa(project: str | Path, docx: str | None = None, stage: str = "draft") -> di
         placeholders = []
         for pattern in PLACEHOLDER_PATTERNS:
             placeholders.extend(re.findall(pattern, text, flags=re.IGNORECASE))
-        checks.append(result("pass" if not placeholders else "warn", "placeholder scan", "none" if not placeholders else f"{len(placeholders)} possible placeholder(s)"))
+        checks.append(result("pass" if not placeholders else ("fail" if stage == "final" else "warn"), "placeholder scan", "none" if not placeholders else f"{len(placeholders)} possible placeholder(s)"))
 
         citations = re.findall(r"\([A-Z][A-Za-z'.-]+(?:\s+and\s+[A-Z][A-Za-z'.-]+| et al\.)?,\s*(?:19|20)\d{2}\)", text)
         has_bib = "BIBLIOGRAPHY" in text.upper() or "REFERENCES" in text.upper()
@@ -228,7 +224,12 @@ def qa(project: str | Path, docx: str | None = None, stage: str = "draft") -> di
         }
 
     outputs = root / "outputs"
-    survey_results = survey_result_files(root)
+    configured_results = manifest.get("survey", {}).get("results")
+    survey_results = []
+    if configured_results:
+        configured_path = artifact_path(root, str(configured_results))
+        if configured_path.is_file():
+            survey_results = [configured_path]
     has_results = bool(survey_results)
     method = manifest.get("method", {}).get("type") if isinstance(manifest.get("method"), dict) else "unknown"
     if method in {"survey", "survey-only", "mixed-methods"} or has_results:

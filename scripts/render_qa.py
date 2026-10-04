@@ -5,10 +5,11 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
-from common import latest_file, project_path, rel, write_text
+from common import dissertation_path, latest_file, project_path, rel, write_text
 
 
 FORBIDDEN_RENDER_TERMS = [
@@ -29,13 +30,7 @@ FORBIDDEN_RENDER_TERMS = [
 
 
 def find_docx(project_dir: Path, explicit: str | None) -> Path:
-    if explicit:
-        path = Path(explicit)
-        return path if path.is_absolute() else project_dir / path
-    found = latest_file(project_dir / "outputs" if (project_dir / "outputs").exists() else project_dir, ["*.docx"])
-    if found is None:
-        raise FileNotFoundError("No DOCX found for render QA.")
-    return found
+    return dissertation_path(project_dir, explicit)
 
 
 def bundled_render_script() -> Path | None:
@@ -139,8 +134,9 @@ def a11y_audit(docx: Path) -> dict[str, Any] | None:
 def render_qa(project: str | Path, docx: str | None = None) -> dict[str, Any]:
     root = project_path(project)
     docx_path = find_docx(root, docx)
-    outdir = root / ".codex_work" / "render_qa"
-    outdir.mkdir(parents=True, exist_ok=True)
+    work = root / ".codex_work" / "render_qa"
+    work.mkdir(parents=True, exist_ok=True)
+    outdir = Path(tempfile.mkdtemp(prefix="run-", dir=work))
 
     bundled_ok, bundled_message = run_bundled_renderer(docx_path, outdir)
     render_engine = "bundled"
@@ -157,7 +153,7 @@ def render_qa(project: str | Path, docx: str | None = None) -> dict[str, Any]:
     pages_report = page_nonblank_report(outdir)
     audit = a11y_audit(docx_path)
 
-    status = "pass"
+    status = "pass" if raster_ok and not text_error and pages_report.get("png_pages", 0) > 0 and pages_report.get("possible_blank") is not None else "fail"
     if heading_issue or bad_terms or pages_report.get("possible_blank") not in {0, None}:
         status = "fail"
 

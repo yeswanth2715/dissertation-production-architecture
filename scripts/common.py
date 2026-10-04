@@ -78,10 +78,13 @@ def load_manifest(project_dir: Path) -> dict[str, Any]:
     try:
         import yaml  # type: ignore
 
+    except ImportError:
+        yaml = None
+    if yaml is not None:
         data = yaml.safe_load(read_text(path))
+        if data is not None and not isinstance(data, dict):
+            raise ValueError("project.yaml must contain a mapping")
         return data or {}
-    except Exception:
-        pass
 
     data: dict[str, Any] = {}
     stack: list[tuple[int, dict[str, Any]]] = [(-1, data)]
@@ -115,3 +118,18 @@ def rel(path: Path) -> str:
         return str(path.resolve().relative_to(REPO_ROOT)).replace("\\", "/")
     except ValueError:
         return str(path)
+
+
+def artifact_path(root: Path, value: str) -> Path:
+    """Resolve a project artifact without allowing evidence from another project."""
+    path = (root / value).resolve()
+    if not path.is_relative_to(root.resolve()):
+        raise ValueError(f"Artifact must remain inside project: {value}")
+    return path
+
+
+def dissertation_path(root: Path, explicit: str | None = None) -> Path:
+    manifest = load_manifest(root)
+    outputs = manifest.get("outputs", {})
+    value = explicit or outputs.get("dissertation", "outputs/dissertation.docx")
+    return artifact_path(root, str(value))
